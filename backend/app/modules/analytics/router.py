@@ -5,6 +5,8 @@ from sqlalchemy import func
 from app.core.database import get_db
 from app.modules.agenda.models import Appointment
 from app.modules.servizi.models import Service
+from .lifetime_value import calculate_customer_lifetime_value
+from .kpi_dashboard import generate_kpi_dashboard
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
@@ -42,3 +44,21 @@ def client_profile(client_id: int, db: Session = Depends(get_db)):
         "avg_ticket": avg,
         "services": services
     }
+
+@router.get("/client/{client_id}/value")
+def client_value(client_id: int):
+
+    payments = service.get_client_payments(client_id)
+
+    value = calculate_customer_lifetime_value(payments)
+
+    return value
+
+@router.get("/dashboard")
+def analytics_dashboard():
+
+    appointments = service.get_all_appointments()
+    payments = service.get_all_payments()
+    clients = service.get_all_clients()
+
+    return generate_kpi_dashboard(appointments, payments, clients)

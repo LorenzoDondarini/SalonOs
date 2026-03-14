@@ -4,6 +4,9 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from .models import Appointment
 from .schemas import AppointmentCreate
+from .slot_optimizer import suggest_available_slots
+from fastapi import Query
+
 
 router = APIRouter(prefix="/appointments", tags=["appointments"])
 
@@ -51,3 +54,14 @@ def update_appointment(
     db.commit()
 
     return appointment
+
+@router.get("/suggest-slots")
+def suggest_slots(duration: int = Query(...), service_id: int | None = None):
+
+    appointments = service.get_all_appointments()
+
+    slots = suggest_available_slots(appointments, duration)
+
+    return {
+        "available_slots": slots
+    }
