@@ -7,6 +7,7 @@ from app.modules.agenda.models import Appointment
 from app.modules.servizi.models import Service
 from .lifetime_value import calculate_customer_lifetime_value
 from .kpi_dashboard import generate_kpi_dashboard
+from .client_segments import segment_clients
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
@@ -62,3 +63,13 @@ def analytics_dashboard():
     clients = service.get_all_clients()
 
     return generate_kpi_dashboard(appointments, payments, clients)
+
+@router.get("/client-segments")
+def get_client_segments():
+
+    clients = service.get_all_clients()
+
+    segments = segment_clients(clients)
+
+    return segments
+    

@@ -2,201 +2,166 @@
 
 import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
-import api from "../../../lib/api"
+import api from "@/lib/api"
 
-export default function ClientPage(){
+export default function ClientePage() {
 
-  const {id} = useParams()
+  const { id } = useParams()
 
-  const [profile,setProfile] = useState(null)
+  const [cliente, setCliente] = useState(null)
+  const [appointments, setAppointments] = useState([])
+  const [customerValue, setCustomerValue] = useState(null)
 
-  const [notes,setNotes] = useState("")
-  const [tags,setTags] = useState("")
+  useEffect(() => {
+    loadCliente()
+    loadAppointments()
+    loadCustomerValue()
+  }, [])
 
-  useEffect(()=>{
-
-    loadProfile()
-
-  },[id])
-
-  async function loadProfile(){
-
-    const res = await api.get(`/analytics/client-profile/${id}`)
-
-    setProfile(res.data)
-
-    setNotes(res.data.client.notes || "")
-    setTags(res.data.client.tags || "")
-
+  const loadCliente = async () => {
+    try {
+      const res = await api.get(`/clienti/${id}`)
+      setCliente(res.data)
+    } catch (err) {
+      console.error(err)
+    }
   }
 
-  async function saveNotes(){
-
-    await api.put(`/clients/${id}/notes`,null,{
-      params:{notes}
-    })
-
-    loadProfile()
-
+  const loadAppointments = async () => {
+    try {
+      const res = await api.get(`/agenda/client/${id}`)
+      setAppointments(res.data)
+    } catch (err) {
+      console.error(err)
+    }
   }
 
-  async function saveTags(){
-
-    await api.put(`/clients/${id}/tags`,null,{
-      params:{tags}
-    })
-
-    loadProfile()
-
+  const loadCustomerValue = async () => {
+    try {
+      const res = await api.get(`/analytics/client/${id}/value`)
+      setCustomerValue(res.data)
+    } catch (err) {
+      console.error(err)
+    }
   }
 
-  if(!profile) return <p className="p-10">Caricamento...</p>
+  if (!cliente) {
+    return <div className="p-6">Caricamento cliente...</div>
+  }
 
-  const client = profile.client
+  return (
+    <div className="p-6 space-y-6">
 
-  return(
+      {/* HEADER CLIENTE */}
+      <div className="bg-white p-6 rounded-xl shadow">
 
-    <div className="p-10 space-y-10">
+        <h1 className="text-2xl font-semibold">{cliente.nome}</h1>
 
-      <h1 className="text-3xl font-semibold">
+        <p className="text-gray-500">{cliente.telefono}</p>
 
-        {client.first_name} {client.last_name}
+        {cliente.note && (
+          <p className="mt-2 text-sm text-gray-600">{cliente.note}</p>
+        )}
 
-      </h1>
+      </div>
 
-      <div className="grid grid-cols-3 gap-6">
+      {/* CUSTOMER VALUE */}
+      <div className="bg-white p-6 rounded-xl shadow">
 
-        <div className="bg-white border rounded-xl p-6">
+        <h2 className="text-lg font-semibold mb-4">
+          Customer Value
+        </h2>
 
-          <p className="text-sm text-neutral-500">
-            Visite
-          </p>
+        <div className="grid grid-cols-3 gap-4">
 
-          <p className="text-3xl font-semibold">
-            {profile.visits}
-          </p>
+          <div>
+            <p className="text-sm text-gray-500">
+              Totale speso
+            </p>
 
-        </div>
+            <p className="text-xl font-semibold">
+              €{customerValue?.total_revenue ?? 0}
+            </p>
+          </div>
 
-        <div className="bg-white border rounded-xl p-6">
+          <div>
+            <p className="text-sm text-gray-500">
+              Visite
+            </p>
 
-          <p className="text-sm text-neutral-500">
-            Spesa totale
-          </p>
+            <p className="text-xl font-semibold">
+              {customerValue?.visits ?? 0}
+            </p>
+          </div>
 
-          <p className="text-3xl font-semibold">
-            €{profile.total_spent}
-          </p>
+          <div>
+            <p className="text-sm text-gray-500">
+              Ticket medio
+            </p>
 
-        </div>
-
-        <div className="bg-white border rounded-xl p-6">
-
-          <p className="text-sm text-neutral-500">
-            Ticket medio
-          </p>
-
-          <p className="text-3xl font-semibold">
-            €{profile.avg_ticket}
-          </p>
+            <p className="text-xl font-semibold">
+              €{customerValue?.average_ticket ?? 0}
+            </p>
+          </div>
 
         </div>
 
       </div>
 
-      <div className="bg-white border rounded-xl p-6">
+      {/* STORICO APPUNTAMENTI */}
+      <div className="bg-white p-6 rounded-xl shadow">
 
         <h2 className="text-lg font-semibold mb-4">
-          Note tecniche cliente
+          Storico Appuntamenti
         </h2>
 
-        <textarea
-        value={notes}
-        onChange={(e)=>setNotes(e.target.value)}
-        className="border w-full p-3 rounded-lg h-32"
-        />
+        {appointments.length === 0 && (
+          <p className="text-gray-500">
+            Nessun appuntamento trovato
+          </p>
+        )}
 
-        <button
-        onClick={saveNotes}
-        className="mt-4 bg-black text-white px-4 py-2 rounded"
-        >
-          Salva note
-        </button>
+        <div className="space-y-3">
 
-      </div>
+          {appointments.map((a) => (
 
-      <div className="bg-white border rounded-xl p-6">
+            <div
+              key={a.id}
+              className="border rounded-lg p-3 flex justify-between"
+            >
 
-        <h2 className="text-lg font-semibold mb-4">
-          Tag cliente
-        </h2>
+              <div>
 
-        <input
-        value={tags}
-        onChange={(e)=>setTags(e.target.value)}
-        className="border w-full p-3 rounded-lg"
-        placeholder="VIP, colore, barba, extension"
-        />
+                <p className="font-medium">
+                  {a.service_name}
+                </p>
 
-        <button
-        onClick={saveTags}
-        className="mt-4 bg-black text-white px-4 py-2 rounded"
-        >
-          Salva tag
-        </button>
+                <p className="text-sm text-gray-500">
+                  {a.start_time}
+                </p>
 
-      </div>
+              </div>
 
-      <div className="bg-white border rounded-xl p-6">
+              <div className="text-right">
 
-        <h2 className="text-lg font-semibold mb-4">
-          Storico servizi
-        </h2>
+                <p className="text-sm text-gray-500">
+                  Operatore
+                </p>
 
-        <table className="w-full">
+                <p className="font-medium">
+                  {a.team_member}
+                </p>
 
-          <thead>
+              </div>
 
-            <tr className="border-b text-left text-sm text-neutral-500">
+            </div>
 
-              <th className="p-3">Data</th>
-              <th className="p-3">Servizio</th>
-              <th className="p-3">Operatore</th>
+          ))}
 
-            </tr>
-
-          </thead>
-
-          <tbody>
-
-            {profile.history.map(item => (
-
-              <tr key={item.id} className="border-b">
-
-                <td className="p-3">
-                  {new Date(item.date).toLocaleDateString()}
-                </td>
-
-                <td className="p-3">
-                  {item.service}
-                </td>
-
-                <td className="p-3">
-                  {item.operator}
-                </td>
-
-              </tr>
-
-            ))}
-
-          </tbody>
-
-        </table>
+        </div>
 
       </div>
 
     </div>
-
   )
-
 }

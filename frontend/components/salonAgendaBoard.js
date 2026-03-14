@@ -1,145 +1,157 @@
 "use client"
 
-const HOURS = [
-  "09:00","09:30","10:00","10:30",
-  "11:00","11:30","12:00","12:30",
-  "13:00","13:30","14:00","14:30",
-  "15:00","15:30","16:00","16:30",
-  "17:00","17:30","18:00","18:30"
-]
+import { useEffect, useState } from "react"
+import api from "@/lib/api"
+import AppointmentCard from "./appointmentCard"
 
-function formatHour(date){
-  const d = new Date(date)
-  return d.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})
-}
+export default function SalonAgendaBoard() {
 
-function getColor(serviceId){
+  const [appointments, setAppointments] = useState([])
+  const [team, setTeam] = useState([])
 
-  const colors=[
-    "bg-blue-500",
-    "bg-green-500",
-    "bg-purple-500",
-    "bg-pink-500",
-    "bg-orange-500"
+  const hours = [
+    "09:00","10:00","11:00","12:00",
+    "13:00","14:00","15:00","16:00",
+    "17:00","18:00","19:00"
   ]
 
-  return colors[serviceId % colors.length]
+  const loadAgenda = async () => {
+    try {
 
-}
+      const res = await api.get("/agenda")
+      setAppointments(res.data)
 
-export default function SalonAgendaBoard({
-  team,
-  appointments,
-  clients,
-  onSelectSlot,
-  onMoveAppointment
-}){
+    } catch (err) {
 
-  function findAppointment(hour,userId){
+      console.error("Agenda load error", err)
 
-    return appointments.find(a=>{
-      return formatHour(a.start_time)===hour && a.user_id===userId
-    })
+    }
+  }
+
+  const loadTeam = async () => {
+
+    try {
+
+      const res = await api.get("/team")
+      setTeam(res.data)
+
+    } catch (err) {
+
+      console.error("Team load error", err)
+
+    }
 
   }
 
-  function getClientName(clientId){
+  useEffect(() => {
 
-    const client=clients.find(c=>c.id===clientId)
+    loadAgenda()
+    loadTeam()
 
-    if(!client) return "Cliente"
+  }, [])
 
-    return client.first_name+" "+(client.last_name||"")
+  const handleDrop = async (e, operatorId, hour) => {
+
+    const appointmentId = e.dataTransfer.getData("appointmentId")
+
+    try {
+
+      await api.put(`/agenda/${appointmentId}`, {
+        operator_id: operatorId,
+        hour: hour
+      })
+
+      loadAgenda()
+
+    } catch (err) {
+
+      console.error("Update appointment error", err)
+
+    }
 
   }
 
-  function handleDrop(e,hour,userId){
-
-    const appointmentId=e.dataTransfer.getData("appointmentId")
-
-    onMoveAppointment(appointmentId,hour,userId)
-
+  const allowDrop = (e) => {
+    e.preventDefault()
   }
 
-  return(
+  return (
 
-    <div className="overflow-x-auto bg-white border rounded-xl">
+    <div className="overflow-x-auto">
 
-      <table className="w-full">
+      <div className="grid grid-cols-[100px_repeat(auto-fit,minmax(220px,1fr))]">
 
-        <thead>
+        {/* HOURS COLUMN */}
 
-          <tr className="border-b">
+        <div className="border-r">
 
-            <th className="p-3 text-left text-sm text-neutral-500">
-              Ora
-            </th>
+          {hours.map((h) => (
 
-            {team.map(member=>(
-              <th key={member.id} className="p-3 text-left">
-                {member.name}
-              </th>
-            ))}
-
-          </tr>
-
-        </thead>
-
-        <tbody>
-
-          {HOURS.map(hour=>(
-
-            <tr key={hour} className="border-b">
-
-              <td className="p-3 text-sm text-neutral-500">
-                {hour}
-              </td>
-
-              {team.map(member=>{
-
-                const appointment=findAppointment(hour,member.id)
-
-                return(
-
-                  <td
-                  key={member.id}
-                  className="p-2"
-                  onClick={()=>onSelectSlot(hour,member.id)}
-                  onDragOver={(e)=>e.preventDefault()}
-                  onDrop={(e)=>handleDrop(e,hour,member.id)}
-                  >
-
-                    {appointment ? (
-
-                      <div
-                      draggable
-                      onDragStart={(e)=>e.dataTransfer.setData("appointmentId",appointment.id)}
-                      className={`${getColor(appointment.service_id)} text-white rounded-lg p-2 text-sm cursor-move`}
-                      >
-
-                        {getClientName(appointment.client_id)}
-
-                      </div>
-
-                    ) : (
-
-                      <div className="h-14 bg-neutral-100 rounded-lg hover:bg-neutral-200"/>
-
-                    )}
-
-                  </td>
-
-                )
-
-              })}
-
-            </tr>
+            <div
+              key={h}
+              className="h-24 border-b flex items-start pt-2 pl-2 text-gray-400 text-sm"
+            >
+              {h}
+            </div>
 
           ))}
 
-        </tbody>
+        </div>
 
-      </table>
+        {/* TEAM COLUMNS */}
+
+        {team.map((operator) => (
+
+          <div key={operator.id} className="border-r">
+
+            <div className="h-12 flex items-center justify-center font-semibold border-b bg-gray-50">
+
+              {operator.name}
+
+            </div>
+
+            {hours.map((hour) => {
+
+              const slotAppointments = appointments.filter((a) => {
+
+                const apHour = a.start_time?.slice(11, 16)
+
+                return (
+                  a.operator_id === operator.id &&
+                  apHour === hour
+                )
+
+              })
+
+              return (
+
+                <div
+                  key={hour}
+                  onDrop={(e) => handleDrop(e, operator.id, hour)}
+                  onDragOver={allowDrop}
+                  className="h-24 border-b p-1"
+                >
+
+                  {slotAppointments.map((ap) => (
+
+                    <AppointmentCard
+                      key={ap.id}
+                      appointment={ap}
+                    />
+
+                  ))}
+
+                </div>
+
+              )
+
+            })}
+
+          </div>
+
+        ))}
+
+      </div>
 
     </div>
 

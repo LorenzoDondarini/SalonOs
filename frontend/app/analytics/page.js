@@ -1,112 +1,136 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import axios from "axios"
+import api from "@/lib/api"
+import RevenueChart from "@/components/revenueChart"
+import AppointmentsChart from "@/components/appointmentsChart"
 
 export default function AnalyticsPage() {
 
-  const [revenue, setRevenue] = useState(0)
-  const [appointments, setAppointments] = useState(0)
-  const [topServices, setTopServices] = useState([])
-  const [customers, setCustomers] = useState([])
-  const [team, setTeam] = useState([])
-  const [margins, setMargins] = useState([])
+  const [dashboard, setDashboard] = useState(null)
+  const [segments, setSegments] = useState(null)
+
+  const loadDashboard = async () => {
+    try {
+      const res = await api.get("/analytics/dashboard")
+      setDashboard(res.data)
+    } catch (err) {
+      console.error("Dashboard error", err)
+    }
+  }
+
+  const loadSegments = async () => {
+    try {
+      const res = await api.get("/analytics/client-segments")
+      setSegments(res.data)
+    } catch (err) {
+      console.error("Segments error", err)
+    }
+  }
 
   useEffect(() => {
-
-    axios
-      .get("http://localhost:8000/analytics/revenue/1")
-      .then(res => setRevenue(res.data.total_revenue))
-
-    axios
-      .get("http://localhost:8000/analytics/appointments/1")
-      .then(res => setAppointments(res.data.appointments))
-
-    axios
-      .get("http://localhost:8000/analytics/top-services/1")
-      .then(res => setTopServices(res.data.top_services))
-
-    axios
-      .get("http://localhost:8000/analytics/customer-value/1")
-      .then(res => setCustomers(res.data))
-
-    axios
-      .get("http://localhost:8000/analytics/team-performance/1")
-      .then(res => setTeam(res.data))
-
-    axios
-      .get("http://localhost:8000/analytics/service-margin/1")
-      .then(res => setMargins(res.data))
-
+    loadDashboard()
+    loadSegments()
   }, [])
 
   return (
-    <div className="p-10">
+    <div className="p-8 space-y-8">
 
-      <h1 className="text-3xl font-semibold mb-8">
-        Analytics
-      </h1>
+      <h1 className="text-3xl font-bold">Analytics</h1>
 
-      <div className="grid grid-cols-3 gap-6 mb-10">
+      {/* KPI DASHBOARD */}
 
-        <div className="bg-white border rounded-xl p-6">
-          <p className="text-sm text-neutral-500">Fatturato</p>
-          <p className="text-2xl font-semibold">€{revenue}</p>
+      <div className="grid grid-cols-4 gap-6">
+
+        <div className="bg-white p-6 rounded-xl shadow">
+          <h3 className="text-gray-500 text-sm">Revenue</h3>
+          <p className="text-2xl font-bold">
+            €{dashboard?.revenue ?? 0}
+          </p>
         </div>
 
-        <div className="bg-white border rounded-xl p-6">
-          <p className="text-sm text-neutral-500">Appuntamenti</p>
-          <p className="text-2xl font-semibold">{appointments}</p>
+        <div className="bg-white p-6 rounded-xl shadow">
+          <h3 className="text-gray-500 text-sm">Appointments</h3>
+          <p className="text-2xl font-bold">
+            {dashboard?.appointments ?? 0}
+          </p>
         </div>
 
-        <div className="bg-white border rounded-xl p-6">
-          <p className="text-sm text-neutral-500">Clienti</p>
-          <p className="text-2xl font-semibold">{customers.length}</p>
+        <div className="bg-white p-6 rounded-xl shadow">
+          <h3 className="text-gray-500 text-sm">Clients</h3>
+          <p className="text-2xl font-bold">
+            {dashboard?.clients ?? 0}
+          </p>
+        </div>
+
+        <div className="bg-white p-6 rounded-xl shadow">
+          <h3 className="text-gray-500 text-sm">Average Ticket</h3>
+          <p className="text-2xl font-bold">
+            €{dashboard?.average_ticket ?? 0}
+          </p>
         </div>
 
       </div>
 
-      <div className="bg-white border rounded-xl p-6 mb-10">
+      {/* CLIENT SEGMENTS */}
 
-        <h2 className="text-lg font-semibold mb-4">
-          Marginalità servizi
+      <div>
+
+        <h2 className="text-xl font-semibold mb-4">
+          Client Segments
         </h2>
 
-        <table className="w-full">
+        <div className="grid grid-cols-4 gap-6">
 
-          <thead className="border-b">
+          <div className="bg-white p-6 rounded-xl shadow">
+            <h3 className="text-gray-500 text-sm">VIP</h3>
+            <p className="text-2xl font-bold">
+              {segments?.vip?.length ?? 0}
+            </p>
+          </div>
 
-            <tr className="text-left text-sm text-neutral-500">
+          <div className="bg-white p-6 rounded-xl shadow">
+            <h3 className="text-gray-500 text-sm">Regular</h3>
+            <p className="text-2xl font-bold">
+              {segments?.regular?.length ?? 0}
+            </p>
+          </div>
 
-              <th className="p-2">Servizio</th>
-              <th className="p-2">Prezzo</th>
-              <th className="p-2">Costo prodotti</th>
-              <th className="p-2">Profitto</th>
-              <th className="p-2">Margine %</th>
+          <div className="bg-white p-6 rounded-xl shadow">
+            <h3 className="text-gray-500 text-sm">At Risk</h3>
+            <p className="text-2xl font-bold">
+              {segments?.at_risk?.length ?? 0}
+            </p>
+          </div>
 
-            </tr>
+          <div className="bg-white p-6 rounded-xl shadow">
+            <h3 className="text-gray-500 text-sm">Inactive</h3>
+            <p className="text-2xl font-bold">
+              {segments?.inactive?.length ?? 0}
+            </p>
+          </div>
 
-          </thead>
+        </div>
 
-          <tbody>
+      </div>
 
-            {margins.map(s => (
+      {/* CHARTS */}
 
-              <tr key={s.service_id} className="border-b">
+      <div className="grid grid-cols-2 gap-6">
 
-                <td className="p-2">{s.name}</td>
-                <td className="p-2">€{s.price}</td>
-                <td className="p-2">€{s.product_cost}</td>
-                <td className="p-2">€{s.profit}</td>
-                <td className="p-2">{s.margin}%</td>
+        <div className="bg-white p-6 rounded-xl shadow">
+          <h3 className="text-lg font-semibold mb-4">
+            Revenue Trend
+          </h3>
+          <RevenueChart />
+        </div>
 
-              </tr>
-
-            ))}
-
-          </tbody>
-
-        </table>
+        <div className="bg-white p-6 rounded-xl shadow">
+          <h3 className="text-lg font-semibold mb-4">
+            Appointments
+          </h3>
+          <AppointmentsChart />
+        </div>
 
       </div>
 
