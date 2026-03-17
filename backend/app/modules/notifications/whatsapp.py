@@ -1,15 +1,30 @@
 from twilio.rest import Client
-
-account_sid = "TWILIO_SID"
-auth_token = "TWILIO_TOKEN"
-
-client = Client(account_sid, auth_token)
+from app.core.config import settings
 
 
-def send_whatsapp(phone,message):
+client = Client(
+    settings.TWILIO_ACCOUNT_SID,
+    settings.TWILIO_AUTH_TOKEN
+)
 
-    client.messages.create(
-        body=message,
-        from_="whatsapp:+14155238886",
-        to=f"whatsapp:{phone}"
-    )
+
+def send_whatsapp(phone: str, message: str):
+
+    try:
+
+        client.messages.create(
+            from_=f"whatsapp:{settings.TWILIO_PHONE_NUMBER}",
+            body=message,
+            to=f"whatsapp:{phone}"
+        )
+
+        return {"status": "sent"}
+
+    except Exception as e:
+
+        print("WhatsApp error:", e)
+
+        return {
+            "status": "error",
+            "error": str(e)
+        }

@@ -84,6 +84,83 @@ def upcoming_reminders(db: Session, salon_id: int):
 
 def send_reminder(phone: str, message: str):
 
-    send_whatsapp(phone, message)
+    try:
 
-    return {"status": "sent"}
+        send_whatsapp(phone, message)
+
+        return {"status": "sent"}
+
+    except Exception as e:
+
+        return {
+            "status": "error",
+            "error": str(e)
+        }
+
+
+# ---------------------------------------------------------
+# NUOVE FUNZIONI INTEGRATE
+# ---------------------------------------------------------
+
+def send_recovery_campaign(db: Session, salon_id: int):
+
+    """
+    Invia messaggi WhatsApp ai clienti inattivi
+    """
+
+    clients = clients_to_recover(db, salon_id)
+
+    results = []
+
+    for c in clients:
+
+        try:
+
+            send_whatsapp(c["phone"], c["message"])
+
+            results.append({
+                "client_id": c["id"],
+                "status": "sent"
+            })
+
+        except Exception as e:
+
+            results.append({
+                "client_id": c["id"],
+                "status": "error",
+                "error": str(e)
+            })
+
+    return results
+
+
+def send_daily_reminders(db: Session, salon_id: int):
+
+    """
+    Invia automaticamente i reminder per gli appuntamenti di domani
+    """
+
+    reminders = upcoming_reminders(db, salon_id)
+
+    results = []
+
+    for r in reminders:
+
+        try:
+
+            send_whatsapp(r["phone"], r["message"])
+
+            results.append({
+                "appointment_id": r["appointment_id"],
+                "status": "sent"
+            })
+
+        except Exception as e:
+
+            results.append({
+                "appointment_id": r["appointment_id"],
+                "status": "error",
+                "error": str(e)
+            })
+
+    return results

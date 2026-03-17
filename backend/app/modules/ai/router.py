@@ -2,40 +2,29 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from .forecast import forecast_revenue_next_week
-from .client_retention import clients_at_risk
-from .pricing import suggest_price_adjustments
-from .schedule_optimizer import find_free_slots
-from .ghost_clients import find_ghost_clients
+from app.modules.agenda.models import Appointment
 
-router = APIRouter(prefix="/ai", tags=["ai"])
+from .slot_optimizer import suggest_slots
 
-
-@router.get("/forecast/{salon_id}")
-def forecast(salon_id: int, db: Session = Depends(get_db)):
-
-    return forecast_revenue_next_week(db, salon_id)
+router = APIRouter(
+    prefix="/ai",
+    tags=["ai"]
+)
 
 
-@router.get("/clients-risk/{salon_id}")
-def risky_clients(salon_id: int, db: Session = Depends(get_db)):
+@router.get("/suggest-slots")
+def ai_suggest_slots(
+    duration: int,
+    db: Session = Depends(get_db)
+):
 
-    return clients_at_risk(db, salon_id)
+    appointments = db.query(Appointment).all()
 
+    suggestions = suggest_slots(
+        appointments,
+        duration
+    )
 
-@router.get("/pricing/{salon_id}")
-def pricing_suggestions(salon_id: int, db: Session = Depends(get_db)):
-
-    return suggest_price_adjustments(db, salon_id)
-
-
-@router.get("/free-slots/{salon_id}")
-def free_slots(salon_id: int, db: Session = Depends(get_db)):
-
-    return find_free_slots(db, salon_id)
-
-
-@router.get("/ghost-clients/{salon_id}")
-def ghost_clients(salon_id: int, db: Session = Depends(get_db)):
-
-    return find_ghost_clients(db, salon_id)
+    return {
+        "suggested_slots": suggestions
+    }

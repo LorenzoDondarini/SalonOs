@@ -1,67 +1,65 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from datetime import datetime, timedelta
 
 from app.core.database import get_db
-from .models import Appointment
-from .schemas import AppointmentCreate
-from .slot_optimizer import suggest_available_slots
-from fastapi import Query
+from . import service
+from .schemas import AppointmentCreate, AppointmentUpdate
+
+router = APIRouter(
+    prefix="/agenda",
+    tags=["agenda"]
+)
 
 
-router = APIRouter(prefix="/appointments", tags=["appointments"])
+@router.get("/")
+def get_agenda(db: Session = Depends(get_db)):
+
+    return service.get_all_appointments(db)
 
 
-@router.get("/salon/{salon_id}")
-def get_appointments(salon_id: int, db: Session = Depends(get_db)):
-
-    return db.query(Appointment).filter(
-        Appointment.salon_id == salon_id
-    ).all()
-
-
-@router.post("/")
-def create_appointment(data: AppointmentCreate, db: Session = Depends(get_db)):
-
-    appointment = Appointment(**data.dict())
-
-    db.add(appointment)
-    db.commit()
-    db.refresh(appointment)
-
-    return appointment
-
-
-@router.put("/{appointment_id}")
-def update_appointment(
-    appointment_id: int,
-    data: AppointmentCreate,
+@router.post("/book")
+def create_appointment(
+    payload: AppointmentCreate,
     db: Session = Depends(get_db)
 ):
 
-    appointment = db.query(Appointment).filter(
-        Appointment.id == appointment_id
-    ).first()
+    return service.create_appointment(
+        db,
+        payload.client_id,
+        payload.operator_id,
+        payload.start_time,
+        payload.duration_minutes
+    )
 
-    if not appointment:
-        return {"error": "Appointment not found"}
 
-    appointment.start_time = data.start_time
-    appointment.end_time = data.end_time
-    appointment.user_id = data.user_id
-    appointment.service_id = data.service_id
-    appointment.client_id = data.client_id
+@router.put("/{appointment_id}")
+def move_appointment(
+    appointment_id: int,
+    payload: AppointmentUpdate,
+    db: Session = Depends(get_db)
+):
 
-    db.commit()
+    try:
 
-    return appointment
+        updated = service.update_appointment_time(
+            db,
+            appointment_id,
+            payload.operator_id,
+            payload.start_time,
+        )
 
-@router.get("/suggest-slots")
-def suggest_slots(duration: int = Query(...), service_id: int | None = None):
+        if not updated:
+            raise HTTPException(
+                status_code=404,
+                detail="Appointment not found",
+            )
 
-    appointments = service.get_all_appointments()
+        return updated
 
-    slots = suggest_available_slots(appointments, duration)
+    except Exception as e:
 
-    return {
-        "available_slots": slots
-    }
+        raise HTTPException(
+            status_code=400,
+            detail=str(e),
+        )
