@@ -2,150 +2,135 @@
 
 import { useEffect, useState } from "react"
 import api from "@/lib/api"
-import AppointmentCard from "./appointmentCard"
 
 export default function SalonAgendaBoard() {
 
   const [appointments, setAppointments] = useState([])
   const [team, setTeam] = useState([])
 
-  const hours = [
-    "09:00","10:00","11:00","12:00",
-    "13:00","14:00","15:00","16:00",
-    "17:00","18:00","19:00"
-  ]
+  const startHour = 9
+  const endHour = 19
+  const hourHeight = 70
+  const totalHours = endHour - startHour
 
-  const loadAgenda = async () => {
-    try {
+  const loadData = async () => {
 
-      const res = await api.get("/agenda")
-      setAppointments(res.data)
+    const ap = await api.get("/agenda")
+    const tm = await api.get("/team")
 
-    } catch (err) {
-
-      console.error("Agenda load error", err)
-
-    }
-  }
-
-  const loadTeam = async () => {
-
-    try {
-
-      const res = await api.get("/team")
-      setTeam(res.data)
-
-    } catch (err) {
-
-      console.error("Team load error", err)
-
-    }
+    setAppointments(ap.data)
+    setTeam(tm.data)
 
   }
 
   useEffect(() => {
-
-    loadAgenda()
-    loadTeam()
-
+    loadData()
   }, [])
 
-  const handleDrop = async (e, operatorId, hour) => {
+  const renderAppointments = (operatorId) => {
 
-    const appointmentId = e.dataTransfer.getData("appointmentId")
+    return appointments
+      .filter(a => a.operator_id === operatorId)
+      .map(ap => {
 
-    try {
+        const date = new Date(ap.start_time)
 
-      await api.put(`/agenda/${appointmentId}`, {
-        operator_id: operatorId,
-        hour: hour
+        const hour = date.getHours()
+        const minutes = date.getMinutes()
+
+        const top =
+          ((hour - startHour) * hourHeight) +
+          (minutes / 60) * hourHeight
+
+        const height = (ap.duration_minutes || 30) / 60 * hourHeight
+
+        return (
+
+          <div
+            key={ap.id}
+            draggable
+            onDragStart={(e) =>
+              e.dataTransfer.setData("appointmentId", ap.id)
+            }
+            className="absolute left-2 right-2 bg-blue-500 text-white rounded-lg p-2 text-xs shadow cursor-move"
+            style={{
+              top,
+              height
+            }}
+          >
+
+            <p className="font-medium truncate">
+              {ap.client_name || "Cliente"}
+            </p>
+
+            <p className="opacity-70 truncate">
+              {ap.service_name || ""}
+            </p>
+
+          </div>
+
+        )
+
       })
 
-      loadAgenda()
-
-    } catch (err) {
-
-      console.error("Update appointment error", err)
-
-    }
-
-  }
-
-  const allowDrop = (e) => {
-    e.preventDefault()
   }
 
   return (
 
-    <div className="overflow-x-auto">
+    <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
 
-      <div className="grid grid-cols-[100px_repeat(auto-fit,minmax(220px,1fr))]">
+      <div className="grid grid-cols-[80px_repeat(auto-fit,minmax(200px,1fr))]">
 
-        {/* HOURS COLUMN */}
+        {/* ORARI */}
+        <div className="bg-neutral-50 border-r">
 
-        <div className="border-r">
+          {Array.from({ length: totalHours }).map((_, i) => {
 
-          {hours.map((h) => (
+            const hour = startHour + i
 
-            <div
-              key={h}
-              className="h-24 border-b flex items-start pt-2 pl-2 text-gray-400 text-sm"
-            >
-              {h}
-            </div>
+            return (
 
-          ))}
+              <div
+                key={hour}
+                className="text-xs text-neutral-400 flex items-start justify-end pr-2 pt-1 border-b"
+                style={{ height: hourHeight }}
+              >
+                {hour}:00
+              </div>
+
+            )
+
+          })}
 
         </div>
 
-        {/* TEAM COLUMNS */}
+        {/* OPERATORI */}
+        {team.map(op => (
 
-        {team.map((operator) => (
+          <div key={op.id} className="border-r last:border-r-0">
 
-          <div key={operator.id} className="border-r">
-
-            <div className="h-12 flex items-center justify-center font-semibold border-b bg-gray-50">
-
-              {operator.name}
-
+            <div className="h-10 flex items-center justify-center font-medium border-b bg-white">
+              {op.name}
             </div>
 
-            {hours.map((hour) => {
+            <div
+              className="relative bg-neutral-50"
+              style={{ height: totalHours * hourHeight }}
+            >
 
-              const slotAppointments = appointments.filter((a) => {
-
-                const apHour = a.start_time?.slice(11, 16)
-
-                return (
-                  a.operator_id === operator.id &&
-                  apHour === hour
-                )
-
-              })
-
-              return (
+              {Array.from({ length: totalHours }).map((_, i) => (
 
                 <div
-                  key={hour}
-                  onDrop={(e) => handleDrop(e, operator.id, hour)}
-                  onDragOver={allowDrop}
-                  className="h-24 border-b p-1"
-                >
+                  key={i}
+                  className="border-b border-neutral-200"
+                  style={{ height: hourHeight }}
+                />
 
-                  {slotAppointments.map((ap) => (
+              ))}
 
-                    <AppointmentCard
-                      key={ap.id}
-                      appointment={ap}
-                    />
+              {renderAppointments(op.id)}
 
-                  ))}
-
-                </div>
-
-              )
-
-            })}
+            </div>
 
           </div>
 
